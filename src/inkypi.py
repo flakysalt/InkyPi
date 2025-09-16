@@ -26,6 +26,7 @@ from blueprints.main import main_bp
 from blueprints.settings import settings_bp
 from blueprints.plugin import plugin_bp
 from blueprints.playlist import playlist_bp
+from blueprints.ftp_browser_api import ftp_browser_api
 from jinja2 import ChoiceLoader, FileSystemLoader
 from plugins.plugin_registry import load_plugins
 from waitress import serve
@@ -75,6 +76,7 @@ app.register_blueprint(main_bp)
 app.register_blueprint(settings_bp)
 app.register_blueprint(plugin_bp)
 app.register_blueprint(playlist_bp)
+app.register_blueprint(ftp_browser_api, url_prefix='/api/plugins/ftp_browser')
 
 if __name__ == '__main__':
 

@@ -263,42 +263,52 @@
         document.getElementById('browser_error').style.display = 'none';
         document.getElementById('image_preview').style.display = 'none';
         
-        // Simulate FTP connection (in a real implementation, this would be an AJAX call to the backend)
-        // For demonstration, we'll simulate a successful connection with mock data
-        setTimeout(() => {
-            try {
-                // This is where you'd make an actual FTP connection
-                // For now, we'll use mock data
-                ftpContents = {
-                    current_path: '/',
-                    parent_path: '/',
-                    directories: [
-                        { name: 'Photos', path: '/Photos', type: 'dir' },
-                        { name: 'Documents', path: '/Documents', type: 'dir' },
-                        { name: 'Downloads', path: '/Downloads', type: 'dir' }
-                    ],
-                    files: [
-                        { name: 'sample1.jpg', path: '/sample1.jpg', type: 'file', size: '1024' },
-                        { name: 'sample2.png', path: '/sample2.png', type: 'file', size: '2048' }
-                    ]
-                };
-                
-                // Update current path
-                currentPath = ftpContents.current_path;
-                document.getElementById('current_path').value = currentPath;
-                document.getElementById('current_path_display').textContent = currentPath;
-                
-                // Populate directory listing
-                populateDirectoryListing(ftpContents);
-                
-                // Show browser content
-                document.getElementById('browser_loading').style.display = 'none';
-                document.getElementById('browser_content').style.display = 'block';
-            } catch (error) {
-                document.getElementById('browser_loading').style.display = 'none';
-                showError('Failed to connect to FTP server: ' + error.message);
+        // Make AJAX call to backend to list directory
+        fetch('/api/plugins/ftp_browser/list_directory', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                server: server,
+                username: username,
+                password: password,
+                use_tls: useTLS,
+                passive: passive,
+                path: '/'
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
-        }, 1000);
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Update with real data from server
+            ftpContents = data;
+            
+            // Update current path
+            currentPath = ftpContents.current_path;
+            document.getElementById('current_path').value = currentPath;
+            document.getElementById('current_path_display').textContent = currentPath;
+            
+            // Populate directory listing
+            populateDirectoryListing(ftpContents);
+            
+            // Show browser content
+            document.getElementById('browser_loading').style.display = 'none';
+            document.getElementById('browser_content').style.display = 'block';
+        })
+        .catch(error => {
+            document.getElementById('browser_loading').style.display = 'none';
+            showError('Failed to connect to FTP server: ' + error.message);
+        });
+    }
     }
     
     // Function to show an error message
@@ -367,70 +377,64 @@
         document.getElementById('browser_error').style.display = 'none';
         document.getElementById('image_preview').style.display = 'none';
         
-        // Simulate directory navigation
-        setTimeout(() => {
-            try {
-                // This is where you'd make an actual FTP directory listing call
-                // For now, we'll use mock data based on the path
-                
-                if (path === '/Photos') {
-                    ftpContents = {
-                        current_path: '/Photos',
-                        parent_path: '/',
-                        directories: [
-                            { name: 'Vacation', path: '/Photos/Vacation', type: 'dir' },
-                            { name: 'Family', path: '/Photos/Family', type: 'dir' }
-                        ],
-                        files: [
-                            { name: 'beach.jpg', path: '/Photos/beach.jpg', type: 'file', size: '3072' },
-                            { name: 'sunset.jpg', path: '/Photos/sunset.jpg', type: 'file', size: '4096' }
-                        ]
-                    };
-                } else if (path === '/Photos/Vacation') {
-                    ftpContents = {
-                        current_path: '/Photos/Vacation',
-                        parent_path: '/Photos',
-                        directories: [],
-                        files: [
-                            { name: 'mountain.jpg', path: '/Photos/Vacation/mountain.jpg', type: 'file', size: '5120' },
-                            { name: 'lake.jpg', path: '/Photos/Vacation/lake.jpg', type: 'file', size: '6144' }
-                        ]
-                    };
-                } else {
-                    // Default for other paths or root
-                    ftpContents = {
-                        current_path: path,
-                        parent_path: path === '/' ? '/' : path.substring(0, path.lastIndexOf('/')),
-                        directories: [
-                            { name: 'Sample', path: path + '/Sample', type: 'dir' }
-                        ],
-                        files: [
-                            { name: 'image.jpg', path: path + '/image.jpg', type: 'file', size: '1024' }
-                        ]
-                    };
-                }
-                
-                // Update current path
-                currentPath = ftpContents.current_path;
-                document.getElementById('current_path').value = currentPath;
-                document.getElementById('current_path_display').textContent = currentPath;
-                
-                // Populate directory listing
-                populateDirectoryListing(ftpContents);
-                
-                // Show browser content
-                document.getElementById('browser_loading').style.display = 'none';
-                document.getElementById('browser_content').style.display = 'block';
-                
-                // If in random mode and navigated to a directory, update the selected path
-                if (document.getElementById('random_mode').checked) {
-                    document.getElementById('selected_image').value = '';
-                }
-            } catch (error) {
-                document.getElementById('browser_loading').style.display = 'none';
-                showError('Failed to navigate to directory: ' + error.message);
+        // Get server connection details
+        const server = document.getElementById('server').value;
+        const username = document.getElementById('username').value || 'anonymous';
+        const password = document.getElementById('password').value || '';
+        const useTLS = document.getElementById('use_tls').checked;
+        const passive = document.getElementById('passive').checked;
+        
+        // Make AJAX call to backend to list directory
+        fetch('/api/plugins/ftp_browser/list_directory', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                server: server,
+                username: username,
+                password: password,
+                use_tls: useTLS,
+                passive: passive,
+                path: path
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
-        }, 500);
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Update with real data from server
+            ftpContents = data;
+            
+            // Update current path
+            currentPath = ftpContents.current_path;
+            document.getElementById('current_path').value = currentPath;
+            document.getElementById('current_path_display').textContent = currentPath;
+            
+            // Populate directory listing
+            populateDirectoryListing(ftpContents);
+            
+            // Show browser content
+            document.getElementById('browser_loading').style.display = 'none';
+            document.getElementById('browser_content').style.display = 'block';
+            
+            // If in random mode and navigated to a directory, update the selected path
+            if (document.getElementById('random_mode').checked) {
+                document.getElementById('selected_image').value = '';
+            }
+        })
+        .catch(error => {
+            document.getElementById('browser_loading').style.display = 'none';
+            showError('Failed to navigate to directory: ' + error.message);
+        });
+    }
     }
     
     // Function to navigate up one directory
@@ -451,12 +455,51 @@
         document.getElementById('browser_content').style.display = 'none';
         document.getElementById('image_preview').style.display = 'block';
         
-        // In a real implementation, you would fetch the image from the server
-        // For demonstration, we'll use a placeholder image
-        document.getElementById('preview_image').src = 'https://via.placeholder.com/400x300?text=Image+Preview';
+        // Get server connection details
+        const server = document.getElementById('server').value;
+        const username = document.getElementById('username').value || 'anonymous';
+        const password = document.getElementById('password').value || '';
+        const useTLS = document.getElementById('use_tls').checked;
+        const passive = document.getElementById('passive').checked;
         
-        // Update selected image
-        selectedImage = path;
+        // Make AJAX call to backend to get preview image
+        fetch('/api/plugins/ftp_browser/preview_image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                server: server,
+                username: username,
+                password: password,
+                use_tls: useTLS,
+                passive: passive,
+                path: path
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Update the preview image with the returned base64 data
+            document.getElementById('preview_image').src = 'data:image/jpeg;base64,' + data.preview;
+            
+            // Update selected image
+            selectedImage = path;
+        })
+        .catch(error => {
+            showError('Failed to preview image: ' + error.message);
+            // Go back to browser view
+            document.getElementById('image_preview').style.display = 'none';
+            document.getElementById('browser_content').style.display = 'block';
+        });
     }
     
     // Function to clear the image selection
