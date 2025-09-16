@@ -14,6 +14,12 @@
 </div>
 
 <div class="form-group">
+    <label for="initial_path" class="form-label">Share Path:</label>
+    <input type="text" id="initial_path" name="initial_path" placeholder="/volume1/photos" class="form-input">
+    <small class="form-text text-muted">Specify your Synology share (e.g., /volume1/photos)</small>
+</div>
+
+<div class="form-group">
     <label for="use_tls" class="form-label">Use FTPS (TLS):</label>
     <div class="toggle-container">
         <input type="checkbox" id="use_tls" name="use_tls" class="toggle-checkbox" value="false"
@@ -251,6 +257,7 @@
         const password = document.getElementById('password').value || '';
         const useTLS = document.getElementById('use_tls').checked;
         const passive = document.getElementById('passive').checked;
+        const initialPath = document.getElementById('initial_path').value || '/';
         
         if (!server) {
             showError('Server address is required');
@@ -275,7 +282,7 @@
                 password: password,
                 use_tls: useTLS,
                 passive: passive,
-                path: '/'
+                path: initialPath
             })
         })
         .then(response => {
@@ -308,7 +315,6 @@
             document.getElementById('browser_loading').style.display = 'none';
             showError('Failed to connect to FTP server: ' + error.message);
         });
-    }
     }
     
     // Function to show an error message
@@ -435,7 +441,6 @@
             showError('Failed to navigate to directory: ' + error.message);
         });
     }
-    }
     
     // Function to navigate up one directory
     function navigateUp() {
@@ -532,6 +537,7 @@
             document.getElementById('server').value = pluginSettings.server || '';
             document.getElementById('username').value = pluginSettings.username || 'anonymous';
             document.getElementById('password').value = pluginSettings.password || '';
+            document.getElementById('initial_path').value = pluginSettings.initial_path || '/';
             document.getElementById('use_tls').checked = pluginSettings.use_tls === 'true';
             document.getElementById('passive').checked = pluginSettings.passive !== 'false';
             document.getElementById('padImage').checked = pluginSettings.padImage === 'true';
@@ -551,6 +557,7 @@
             document.getElementById('username').value = 'anonymous';
             document.getElementById('passive').checked = true;
             document.getElementById('current_path').value = '/';
+            document.getElementById('initial_path').value = '/';
         }
     });
 </script>
