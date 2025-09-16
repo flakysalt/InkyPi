@@ -4,6 +4,12 @@
 </div>
 
 <div class="form-group">
+    <label for="port" class="form-label">Port:</label>
+    <input type="number" id="port" name="port" placeholder="21" value="21" class="form-input">
+    <small class="form-text text-muted">Default FTP port is 21</small>
+</div>
+
+<div class="form-group">
     <label for="username" class="form-label">Username:</label>
     <input type="text" id="username" name="username" placeholder="anonymous" class="form-input">
 </div>
@@ -253,6 +259,7 @@
     // Function to connect to the FTP server and list the root directory
     function connectToFTP() {
         const server = document.getElementById('server').value;
+        const port = document.getElementById('port').value || '21';
         const username = document.getElementById('username').value || 'anonymous';
         const password = document.getElementById('password').value || '';
         const useTLS = document.getElementById('use_tls').checked;
@@ -278,6 +285,7 @@
             },
             body: JSON.stringify({
                 server: server,
+                port: parseInt(port),
                 username: username,
                 password: password,
                 use_tls: useTLS,
@@ -385,6 +393,7 @@
         
         // Get server connection details
         const server = document.getElementById('server').value;
+        const port = document.getElementById('port').value || '21';
         const username = document.getElementById('username').value || 'anonymous';
         const password = document.getElementById('password').value || '';
         const useTLS = document.getElementById('use_tls').checked;
@@ -398,6 +407,7 @@
             },
             body: JSON.stringify({
                 server: server,
+                port: parseInt(port),
                 username: username,
                 password: password,
                 use_tls: useTLS,
@@ -462,6 +472,7 @@
         
         // Get server connection details
         const server = document.getElementById('server').value;
+        const port = document.getElementById('port').value || '21';
         const username = document.getElementById('username').value || 'anonymous';
         const password = document.getElementById('password').value || '';
         const useTLS = document.getElementById('use_tls').checked;
@@ -475,6 +486,7 @@
             },
             body: JSON.stringify({
                 server: server,
+                port: parseInt(port),
                 username: username,
                 password: password,
                 use_tls: useTLS,
@@ -535,6 +547,7 @@
         // Populate form values from plugin settings if available
         if (typeof loadPluginSettings !== 'undefined' && loadPluginSettings) {
             document.getElementById('server').value = pluginSettings.server || '';
+            document.getElementById('port').value = pluginSettings.port || '21';
             document.getElementById('username').value = pluginSettings.username || 'anonymous';
             document.getElementById('password').value = pluginSettings.password || '';
             document.getElementById('initial_path').value = pluginSettings.initial_path || '/';
@@ -554,6 +567,7 @@
             }
         } else {
             // Default values
+            document.getElementById('port').value = '21';
             document.getElementById('username').value = 'anonymous';
             document.getElementById('passive').checked = true;
             document.getElementById('current_path').value = '/';

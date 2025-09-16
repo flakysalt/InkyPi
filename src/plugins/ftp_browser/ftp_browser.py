@@ -9,10 +9,12 @@ Provides:
 
 Config schema (passed via 'options'):
   server: str (required)           — FTP server hostname or IP
+  port: int (optional, default 21) — FTP server port
   username: str (optional, default "anonymous")
   password: str (optional, default "")
   use_tls: bool (optional, default False)
   passive: bool (optional, default True)
+  initial_path: str (optional, default "/")  — Initial directory when connecting
   current_path: str (optional, default "/")
   random_mode: bool (optional, default False)
   selected_image: str (optional)   — Path to a specific image to display
@@ -58,14 +60,14 @@ class FTPBrowser(BasePlugin):
             finally:
                 self.ftp = None
 
-    def _connect_ftp(self, server, username="anonymous", password="", use_tls=False, passive=True):
+    def _connect_ftp(self, server, port=21, username="anonymous", password="", use_tls=False, passive=True):
         """Establish FTP/FTPS connection and login."""
         try:
             self._close_ftp()  # Close existing connection if any
             
             ftp_class = FTP_TLS if use_tls else FTP
             self.ftp = ftp_class()
-            self.ftp.connect(server)
+            self.ftp.connect(server, port)
             self.ftp.login(user=username, passwd=password)
             self.ftp.set_pasv(passive)
             return self.ftp
@@ -250,16 +252,18 @@ class FTPBrowser(BasePlugin):
         if not server:
             raise ValueError("FTP Browser plugin: 'server' option is required")
 
+        port = int(settings.get("port", 21))
         username = settings.get("username", "anonymous")
         password = settings.get("password", "")
         use_tls = bool(settings.get("use_tls", False))
         passive = bool(settings.get("passive", True))
         current_path = settings.get("current_path", "/")
+        initial_path = settings.get("initial_path", "/")
         random_mode = bool(settings.get("random_mode", False))
         selected_image = settings.get("selected_image")
         
         # Connect to FTP server
-        self._connect_ftp(server, username, password, use_tls, passive)
+        self._connect_ftp(server, port, username, password, use_tls, passive)
         
         try:
             if random_mode:

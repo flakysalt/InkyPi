@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 # Create blueprint
 ftp_browser_api = Blueprint("ftp_browser_api", __name__)
 
-def _connect_ftp(server, username="anonymous", password="", use_tls=False, passive=True):
+def _connect_ftp(server, port=21, username="anonymous", password="", use_tls=False, passive=True):
     """Establish FTP/FTPS connection and login."""
     try:
         ftp_class = FTP_TLS if use_tls else FTP
         ftp = ftp_class()
-        ftp.connect(server)
+        ftp.connect(server, port)
         ftp.login(user=username, passwd=password)
         ftp.set_pasv(passive)
         return ftp
@@ -144,6 +144,7 @@ def list_directory():
         data = request.json
         
         server = data.get("server")
+        port = int(data.get("port", 21))
         username = data.get("username", "anonymous")
         password = data.get("password", "")
         use_tls = data.get("use_tls", False)
@@ -153,7 +154,7 @@ def list_directory():
         if not server:
             return jsonify({"error": "Server is required"}), 400
             
-        ftp = _connect_ftp(server, username, password, use_tls, passive)
+        ftp = _connect_ftp(server, port, username, password, use_tls, passive)
         try:
             result = _list_directory(ftp, path)
             return jsonify(result)
@@ -174,6 +175,7 @@ def preview_image():
         data = request.json
         
         server = data.get("server")
+        port = int(data.get("port", 21))
         username = data.get("username", "anonymous")
         password = data.get("password", "")
         use_tls = data.get("use_tls", False)
@@ -185,7 +187,7 @@ def preview_image():
         if not path:
             return jsonify({"error": "Image path is required"}), 400
             
-        ftp = _connect_ftp(server, username, password, use_tls, passive)
+        ftp = _connect_ftp(server, port, username, password, use_tls, passive)
         local_path = None
         
         try:
