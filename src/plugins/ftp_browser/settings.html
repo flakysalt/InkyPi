@@ -70,6 +70,7 @@
 <div id="ftp_browser_section" class="form-group">
     <div class="browser-header">
         <button type="button" id="connect_btn" class="btn btn-primary" onclick="connectToFTP()">Connect</button>
+        <button type="button" id="clear_cache_btn" class="btn btn-secondary" onclick="clearFTPCache()" title="Clear saved connection settings">Clear Saved</button>
         <span id="current_path_display">/</span>
     </div>
     
@@ -116,6 +117,22 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         flex: 1;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        border: 1px solid #6c757d;
+        margin-left: 5px;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #5a6268;
+        border-color: #545b62;
     }
     
     .browser-loading {
@@ -241,6 +258,57 @@
     let selectedImage = '';
     let ftpContents = null;
     
+    // Function to save FTP connection settings to localStorage
+    function saveFTPSettings() {
+        const settings = {
+            server: document.getElementById('server').value,
+            port: document.getElementById('port').value,
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value, // Consider if you want to store this
+            initial_path: document.getElementById('initial_path').value,
+            use_tls: document.getElementById('use_tls').checked,
+            passive: document.getElementById('passive').checked,
+            last_updated: new Date().toISOString()
+        };
+        
+        // Save to localStorage
+        localStorage.setItem('ftpBrowserSettings', JSON.stringify(settings));
+    }
+    
+    // Function to load FTP connection settings from localStorage
+    function loadFTPSettings() {
+        const savedSettings = localStorage.getItem('ftpBrowserSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            
+            // Only use saved settings if they don't already have values from pluginSettings
+            if (!document.getElementById('server').value) {
+                document.getElementById('server').value = settings.server || '';
+            }
+            if (document.getElementById('port').value === '21') {
+                document.getElementById('port').value = settings.port || '21';
+            }
+            if (!document.getElementById('username').value || document.getElementById('username').value === 'anonymous') {
+                document.getElementById('username').value = settings.username || 'anonymous';
+            }
+            if (!document.getElementById('password').value) {
+                document.getElementById('password').value = settings.password || '';
+            }
+            if (!document.getElementById('initial_path').value || document.getElementById('initial_path').value === '/') {
+                document.getElementById('initial_path').value = settings.initial_path || '/';
+            }
+            document.getElementById('use_tls').checked = settings.use_tls || false;
+            document.getElementById('passive').checked = settings.passive !== false; // Default to true
+            
+            // Update checkbox values
+            document.getElementById('use_tls').value = document.getElementById('use_tls').checked ? 'true' : 'false';
+            document.getElementById('passive').value = document.getElementById('passive').checked ? 'true' : 'false';
+            
+            return true;
+        }
+        return false;
+    }
+    
     // Function to update browser visibility based on random mode
     function updateBrowserVisibility() {
         const randomMode = document.getElementById('random_mode').checked;
@@ -270,6 +338,9 @@
             showError('Server address is required');
             return;
         }
+        
+        // Save settings to localStorage whenever connecting
+        saveFTPSettings();
         
         // Show loading state
         document.getElementById('browser_loading').style.display = 'flex';
@@ -323,6 +394,28 @@
             document.getElementById('browser_loading').style.display = 'none';
             showError('Failed to connect to FTP server: ' + error.message);
         });
+    }
+    
+    // Function to clear saved FTP settings
+    function clearFTPCache() {
+        // Remove from localStorage
+        localStorage.removeItem('ftpBrowserSettings');
+        
+        // Optional: Clear the form values if not from a saved plugin instance
+        if (!(typeof loadPluginSettings !== 'undefined' && loadPluginSettings)) {
+            document.getElementById('server').value = '';
+            document.getElementById('port').value = '21';
+            document.getElementById('username').value = 'anonymous';
+            document.getElementById('password').value = '';
+            document.getElementById('initial_path').value = '/';
+            document.getElementById('use_tls').checked = false;
+            document.getElementById('use_tls').value = 'false';
+            document.getElementById('passive').checked = true;
+            document.getElementById('passive').value = 'true';
+        }
+        
+        // Show confirmation
+        alert('Saved FTP connection settings have been cleared.');
     }
     
     // Function to show an error message
@@ -544,6 +637,8 @@
     
     // Initialize the form on load
     document.addEventListener('DOMContentLoaded', () => {
+        let settingsLoaded = false;
+        
         // Populate form values from plugin settings if available
         if (typeof loadPluginSettings !== 'undefined' && loadPluginSettings) {
             document.getElementById('server').value = pluginSettings.server || '';
@@ -564,14 +659,46 @@
             // If we have server credentials, try to connect automatically
             if (pluginSettings.server) {
                 connectToFTP();
+                settingsLoaded = true;
             }
-        } else {
-            // Default values
-            document.getElementById('port').value = '21';
-            document.getElementById('username').value = 'anonymous';
-            document.getElementById('passive').checked = true;
-            document.getElementById('current_path').value = '/';
-            document.getElementById('initial_path').value = '/';
+        } 
+        
+        // If no plugin settings were loaded, try loading from localStorage
+        if (!settingsLoaded) {
+            const hasCache = loadFTPSettings();
+            
+            // Set default values for fields that might not be in saved settings
+            if (!document.getElementById('port').value) {
+                document.getElementById('port').value = '21';
+            }
+            if (!document.getElementById('username').value) {
+                document.getElementById('username').value = 'anonymous';
+            }
+            if (!document.getElementById('passive').checked) {
+                document.getElementById('passive').checked = true;
+            }
+            if (!document.getElementById('current_path').value) {
+                document.getElementById('current_path').value = '/';
+            }
+            if (!document.getElementById('initial_path').value) {
+                document.getElementById('initial_path').value = '/';
+            }
+            
+            // If we successfully loaded cached settings and have a server, try to connect
+            if (hasCache && document.getElementById('server').value) {
+                connectToFTP();
+            }
         }
+        
+        // Add event listeners to all form inputs to save settings when they change
+        const formInputs = document.querySelectorAll('input[type=text], input[type=number], input[type=password]');
+        formInputs.forEach(input => {
+            input.addEventListener('change', saveFTPSettings);
+        });
+        
+        const checkboxes = document.querySelectorAll('input[type=checkbox]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', saveFTPSettings);
+        });
     });
 </script>
