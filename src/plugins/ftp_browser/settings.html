@@ -1,0 +1,513 @@
+<div class="form-group">
+    <label for="server" class="form-label">FTP Server:</label>
+    <input type="text" id="server" name="server" placeholder="ftp.example.com" required class="form-input">
+</div>
+
+<div class="form-group">
+    <label for="username" class="form-label">Username:</label>
+    <input type="text" id="username" name="username" placeholder="anonymous" class="form-input">
+</div>
+
+<div class="form-group">
+    <label for="password" class="form-label">Password:</label>
+    <input type="password" id="password" name="password" placeholder="Password" class="form-input">
+</div>
+
+<div class="form-group">
+    <label for="use_tls" class="form-label">Use FTPS (TLS):</label>
+    <div class="toggle-container">
+        <input type="checkbox" id="use_tls" name="use_tls" class="toggle-checkbox" value="false"
+            onclick="this.value = this.checked ? 'true' : 'false'">
+        <label for="use_tls" class="toggle-label"></label>
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="passive" class="form-label">Use Passive Mode:</label>
+    <div class="toggle-container">
+        <input type="checkbox" id="passive" name="passive" class="toggle-checkbox" value="true" checked
+            onclick="this.value = this.checked ? 'true' : 'false'">
+        <label for="passive" class="toggle-label"></label>
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="padImage" class="form-label">Fit Image to Frame:</label>
+    <div class="toggle-container">
+        <input type="checkbox" id="padImage" name="padImage" class="toggle-checkbox" value="false"
+            onclick="this.value = this.checked ? 'true' : 'false'">
+        <label for="padImage" class="toggle-label"></label>
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="random_mode" class="form-label">Random Image Mode:</label>
+    <div class="toggle-container">
+        <input type="checkbox" id="random_mode" name="random_mode" class="toggle-checkbox" value="false"
+            onclick="this.value = this.checked ? 'true' : 'false'; updateBrowserVisibility();">
+        <label for="random_mode" class="toggle-label"></label>
+    </div>
+</div>
+
+<!-- Hidden field to store the current path -->
+<input type="hidden" id="current_path" name="current_path" value="/">
+<!-- Hidden field to store the selected image path -->
+<input type="hidden" id="selected_image" name="selected_image" value="">
+
+<!-- FTP Browser section -->
+<div id="ftp_browser_section" class="form-group">
+    <div class="browser-header">
+        <button type="button" id="connect_btn" class="btn btn-primary" onclick="connectToFTP()">Connect</button>
+        <span id="current_path_display">/</span>
+    </div>
+    
+    <div id="browser_loading" class="browser-loading" style="display: none;">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <div id="browser_error" class="browser-error" style="display: none;">
+        <p id="error_message">Error connecting to FTP server.</p>
+    </div>
+    
+    <div id="browser_content" class="browser-content" style="display: none;">
+        <div class="browser-nav">
+            <button type="button" class="browser-btn" onclick="navigateUp()">⬆️ Up</button>
+            <button type="button" class="browser-btn" onclick="refreshDirectory()">🔄 Refresh</button>
+        </div>
+        
+        <div id="directory_listing" class="directory-listing">
+            <!-- Directory and file entries will be populated here -->
+        </div>
+    </div>
+    
+    <div id="image_preview" class="image-preview" style="display: none;">
+        <img id="preview_image" src="" alt="Preview">
+        <div class="preview-controls">
+            <button type="button" class="browser-btn" onclick="clearSelection()">Cancel</button>
+            <button type="button" class="browser-btn browser-btn-primary" onclick="confirmSelection()">Select</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .browser-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    #current_path_display {
+        margin-left: 10px;
+        font-family: monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+    }
+    
+    .browser-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+    }
+    
+    .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top: 4px solid #3498db;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .browser-error {
+        background-color: #ffebee;
+        color: #c62828;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+    }
+    
+    .browser-content {
+        margin-top: 10px;
+    }
+    
+    .browser-nav {
+        display: flex;
+        margin-bottom: 10px;
+    }
+    
+    .browser-btn {
+        padding: 6px 12px;
+        border: 1px solid #ccc;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 5px;
+    }
+    
+    .browser-btn:hover {
+        background-color: #e9ecef;
+    }
+    
+    .browser-btn-primary {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    
+    .browser-btn-primary:hover {
+        background-color: #0069d9;
+    }
+    
+    .directory-listing {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .dir-entry {
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    
+    .dir-entry:last-child {
+        border-bottom: none;
+    }
+    
+    .dir-entry:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .dir-entry-icon {
+        margin-right: 10px;
+        font-size: 1.2em;
+    }
+    
+    .dir-entry-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .image-preview {
+        margin-top: 15px;
+        text-align: center;
+    }
+    
+    #preview_image {
+        max-width: 100%;
+        max-height: 200px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+    
+    .preview-controls {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+</style>
+
+<script>
+    // Track the current state
+    let currentPath = '/';
+    let selectedImage = '';
+    let ftpContents = null;
+    
+    // Function to update browser visibility based on random mode
+    function updateBrowserVisibility() {
+        const randomMode = document.getElementById('random_mode').checked;
+        const browserSection = document.getElementById('ftp_browser_section');
+        
+        if (randomMode) {
+            // If random mode, we just need to select a directory
+            document.getElementById('current_path_display').textContent = currentPath;
+            browserSection.style.display = 'block';
+        } else {
+            // If not random mode, we need to select a specific image
+            browserSection.style.display = 'block';
+        }
+    }
+    
+    // Function to connect to the FTP server and list the root directory
+    function connectToFTP() {
+        const server = document.getElementById('server').value;
+        const username = document.getElementById('username').value || 'anonymous';
+        const password = document.getElementById('password').value || '';
+        const useTLS = document.getElementById('use_tls').checked;
+        const passive = document.getElementById('passive').checked;
+        
+        if (!server) {
+            showError('Server address is required');
+            return;
+        }
+        
+        // Show loading state
+        document.getElementById('browser_loading').style.display = 'flex';
+        document.getElementById('browser_content').style.display = 'none';
+        document.getElementById('browser_error').style.display = 'none';
+        document.getElementById('image_preview').style.display = 'none';
+        
+        // Simulate FTP connection (in a real implementation, this would be an AJAX call to the backend)
+        // For demonstration, we'll simulate a successful connection with mock data
+        setTimeout(() => {
+            try {
+                // This is where you'd make an actual FTP connection
+                // For now, we'll use mock data
+                ftpContents = {
+                    current_path: '/',
+                    parent_path: '/',
+                    directories: [
+                        { name: 'Photos', path: '/Photos', type: 'dir' },
+                        { name: 'Documents', path: '/Documents', type: 'dir' },
+                        { name: 'Downloads', path: '/Downloads', type: 'dir' }
+                    ],
+                    files: [
+                        { name: 'sample1.jpg', path: '/sample1.jpg', type: 'file', size: '1024' },
+                        { name: 'sample2.png', path: '/sample2.png', type: 'file', size: '2048' }
+                    ]
+                };
+                
+                // Update current path
+                currentPath = ftpContents.current_path;
+                document.getElementById('current_path').value = currentPath;
+                document.getElementById('current_path_display').textContent = currentPath;
+                
+                // Populate directory listing
+                populateDirectoryListing(ftpContents);
+                
+                // Show browser content
+                document.getElementById('browser_loading').style.display = 'none';
+                document.getElementById('browser_content').style.display = 'block';
+            } catch (error) {
+                document.getElementById('browser_loading').style.display = 'none';
+                showError('Failed to connect to FTP server: ' + error.message);
+            }
+        }, 1000);
+    }
+    
+    // Function to show an error message
+    function showError(message) {
+        document.getElementById('error_message').textContent = message;
+        document.getElementById('browser_error').style.display = 'block';
+    }
+    
+    // Function to populate the directory listing
+    function populateDirectoryListing(contents) {
+        const listingElement = document.getElementById('directory_listing');
+        listingElement.innerHTML = '';
+        
+        // Add parent directory entry if not at root
+        if (contents.current_path !== '/') {
+            const parentEntry = document.createElement('div');
+            parentEntry.className = 'dir-entry';
+            parentEntry.innerHTML = `
+                <span class="dir-entry-icon">📁</span>
+                <span class="dir-entry-name">..</span>
+            `;
+            parentEntry.addEventListener('click', () => navigateTo(contents.parent_path));
+            listingElement.appendChild(parentEntry);
+        }
+        
+        // Add directories
+        contents.directories.forEach(dir => {
+            const dirEntry = document.createElement('div');
+            dirEntry.className = 'dir-entry';
+            dirEntry.innerHTML = `
+                <span class="dir-entry-icon">📁</span>
+                <span class="dir-entry-name">${dir.name}</span>
+            `;
+            dirEntry.addEventListener('click', () => navigateTo(dir.path));
+            listingElement.appendChild(dirEntry);
+        });
+        
+        // Add files (only images)
+        contents.files.forEach(file => {
+            const fileEntry = document.createElement('div');
+            fileEntry.className = 'dir-entry';
+            fileEntry.innerHTML = `
+                <span class="dir-entry-icon">🖼️</span>
+                <span class="dir-entry-name">${file.name}</span>
+            `;
+            fileEntry.addEventListener('click', () => previewImage(file.path));
+            listingElement.appendChild(fileEntry);
+        });
+        
+        // If no entries, show a message
+        if (contents.directories.length === 0 && contents.files.length === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'dir-entry';
+            emptyMessage.innerHTML = `
+                <span class="dir-entry-name">Empty directory</span>
+            `;
+            listingElement.appendChild(emptyMessage);
+        }
+    }
+    
+    // Function to navigate to a directory
+    function navigateTo(path) {
+        // Show loading state
+        document.getElementById('browser_loading').style.display = 'flex';
+        document.getElementById('browser_content').style.display = 'none';
+        document.getElementById('browser_error').style.display = 'none';
+        document.getElementById('image_preview').style.display = 'none';
+        
+        // Simulate directory navigation
+        setTimeout(() => {
+            try {
+                // This is where you'd make an actual FTP directory listing call
+                // For now, we'll use mock data based on the path
+                
+                if (path === '/Photos') {
+                    ftpContents = {
+                        current_path: '/Photos',
+                        parent_path: '/',
+                        directories: [
+                            { name: 'Vacation', path: '/Photos/Vacation', type: 'dir' },
+                            { name: 'Family', path: '/Photos/Family', type: 'dir' }
+                        ],
+                        files: [
+                            { name: 'beach.jpg', path: '/Photos/beach.jpg', type: 'file', size: '3072' },
+                            { name: 'sunset.jpg', path: '/Photos/sunset.jpg', type: 'file', size: '4096' }
+                        ]
+                    };
+                } else if (path === '/Photos/Vacation') {
+                    ftpContents = {
+                        current_path: '/Photos/Vacation',
+                        parent_path: '/Photos',
+                        directories: [],
+                        files: [
+                            { name: 'mountain.jpg', path: '/Photos/Vacation/mountain.jpg', type: 'file', size: '5120' },
+                            { name: 'lake.jpg', path: '/Photos/Vacation/lake.jpg', type: 'file', size: '6144' }
+                        ]
+                    };
+                } else {
+                    // Default for other paths or root
+                    ftpContents = {
+                        current_path: path,
+                        parent_path: path === '/' ? '/' : path.substring(0, path.lastIndexOf('/')),
+                        directories: [
+                            { name: 'Sample', path: path + '/Sample', type: 'dir' }
+                        ],
+                        files: [
+                            { name: 'image.jpg', path: path + '/image.jpg', type: 'file', size: '1024' }
+                        ]
+                    };
+                }
+                
+                // Update current path
+                currentPath = ftpContents.current_path;
+                document.getElementById('current_path').value = currentPath;
+                document.getElementById('current_path_display').textContent = currentPath;
+                
+                // Populate directory listing
+                populateDirectoryListing(ftpContents);
+                
+                // Show browser content
+                document.getElementById('browser_loading').style.display = 'none';
+                document.getElementById('browser_content').style.display = 'block';
+                
+                // If in random mode and navigated to a directory, update the selected path
+                if (document.getElementById('random_mode').checked) {
+                    document.getElementById('selected_image').value = '';
+                }
+            } catch (error) {
+                document.getElementById('browser_loading').style.display = 'none';
+                showError('Failed to navigate to directory: ' + error.message);
+            }
+        }, 500);
+    }
+    
+    // Function to navigate up one directory
+    function navigateUp() {
+        if (currentPath !== '/') {
+            navigateTo(ftpContents.parent_path);
+        }
+    }
+    
+    // Function to refresh the current directory
+    function refreshDirectory() {
+        navigateTo(currentPath);
+    }
+    
+    // Function to preview an image
+    function previewImage(path) {
+        // Hide browser content and show image preview
+        document.getElementById('browser_content').style.display = 'none';
+        document.getElementById('image_preview').style.display = 'block';
+        
+        // In a real implementation, you would fetch the image from the server
+        // For demonstration, we'll use a placeholder image
+        document.getElementById('preview_image').src = 'https://via.placeholder.com/400x300?text=Image+Preview';
+        
+        // Update selected image
+        selectedImage = path;
+    }
+    
+    // Function to clear the image selection
+    function clearSelection() {
+        // Hide image preview and show browser content
+        document.getElementById('image_preview').style.display = 'none';
+        document.getElementById('browser_content').style.display = 'block';
+        
+        // Clear selected image
+        selectedImage = '';
+    }
+    
+    // Function to confirm the image selection
+    function confirmSelection() {
+        // Update the selected image field
+        document.getElementById('selected_image').value = selectedImage;
+        
+        // Hide image preview and show browser content
+        document.getElementById('image_preview').style.display = 'none';
+        document.getElementById('browser_content').style.display = 'block';
+        
+        // Show confirmation message
+        alert('Image selected: ' + selectedImage);
+    }
+    
+    // Initialize the form on load
+    document.addEventListener('DOMContentLoaded', () => {
+        // Populate form values from plugin settings if available
+        if (typeof loadPluginSettings !== 'undefined' && loadPluginSettings) {
+            document.getElementById('server').value = pluginSettings.server || '';
+            document.getElementById('username').value = pluginSettings.username || 'anonymous';
+            document.getElementById('password').value = pluginSettings.password || '';
+            document.getElementById('use_tls').checked = pluginSettings.use_tls === 'true';
+            document.getElementById('passive').checked = pluginSettings.passive !== 'false';
+            document.getElementById('padImage').checked = pluginSettings.padImage === 'true';
+            document.getElementById('random_mode').checked = pluginSettings.random_mode === 'true';
+            document.getElementById('current_path').value = pluginSettings.current_path || '/';
+            document.getElementById('selected_image').value = pluginSettings.selected_image || '';
+            
+            // Update browser visibility based on random mode
+            updateBrowserVisibility();
+            
+            // If we have server credentials, try to connect automatically
+            if (pluginSettings.server) {
+                connectToFTP();
+            }
+        } else {
+            // Default values
+            document.getElementById('username').value = 'anonymous';
+            document.getElementById('passive').checked = true;
+            document.getElementById('current_path').value = '/';
+        }
+    });
+</script>

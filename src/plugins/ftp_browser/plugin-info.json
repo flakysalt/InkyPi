@@ -1,0 +1,5 @@
+{
+    "display_name": "FTP Browser",
+    "id": "ftp_browser",
+    "class": "FTPBrowser"
+}
