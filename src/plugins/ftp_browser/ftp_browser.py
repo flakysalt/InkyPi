@@ -70,6 +70,10 @@ class FTPBrowser(BasePlugin):
             self.ftp.connect(server, port)
             self.ftp.login(user=username, passwd=password)
             self.ftp.set_pasv(passive)
+            
+            # Set encoding to latin-1 to handle non-UTF-8 filenames (e.g., with umlauts)
+            self.ftp.encoding = 'latin-1'
+            
             return self.ftp
         except Exception as e:
             logger.error(f"FTP connection error: {e}")
@@ -181,37 +185,50 @@ class FTPBrowser(BasePlugin):
             try:
                 # Preferred method: mlsd
                 entries = list(self.ftp.mlsd())
-            except (AttributeError, error_perm):
+            except (AttributeError, error_perm, UnicodeDecodeError) as e:
                 # Fallback: nlst (no type info)
-                names = self.ftp.nlst()
-                entries = [(name, {}) for name in names]
+                logger.warning(f"MLSD failed for {path} ({e}), falling back to NLST")
+                try:
+                    names = self.ftp.nlst()
+                    entries = [(name, {}) for name in names]
+                except UnicodeDecodeError as ue:
+                    logger.error(f"Unable to list directory {path} due to encoding issues: {ue}")
+                    self.ftp.cwd(current_dir)
+                    return images
 
             for name, facts in entries:
                 if name in (".", ".."):
                     continue
-                    
-                full_path = f"{path.rstrip('/')}/{name}"
-                entry_type = facts.get("type", None)
                 
-                # If we have type info
-                if entry_type == "dir":
-                    images.extend(self._list_images_recursive(full_path, image_exts))
-                elif entry_type == "file" or entry_type is None:
-                    # Try to determine if it's a directory by attempting to CWD to it
-                    if entry_type is None:
-                        try:
-                            self.ftp.cwd(full_path)
-                            # It's a directory, recurse into it
-                            self.ftp.cwd(current_dir)  # Go back to original directory
-                            images.extend(self._list_images_recursive(full_path, image_exts))
-                            continue
-                        except error_perm:
-                            # Not a directory, check if it's an image
-                            pass
+                try:
+                    full_path = f"{path.rstrip('/')}/{name}"
+                    entry_type = facts.get("type", None)
                     
-                    # Check if it's an image file
-                    if name.lower().endswith(image_exts):
-                        images.append(full_path)
+                    # If we have type info
+                    if entry_type == "dir":
+                        images.extend(self._list_images_recursive(full_path, image_exts))
+                    elif entry_type == "file" or entry_type is None:
+                        # Try to determine if it's a directory by attempting to CWD to it
+                        if entry_type is None:
+                            try:
+                                self.ftp.cwd(full_path)
+                                # It's a directory, recurse into it
+                                self.ftp.cwd(current_dir)  # Go back to original directory
+                                images.extend(self._list_images_recursive(full_path, image_exts))
+                                continue
+                            except (error_perm, UnicodeDecodeError):
+                                # Not a directory or encoding issue, check if it's an image
+                                pass
+                        
+                        # Check if it's an image file
+                        if name.lower().endswith(image_exts):
+                            images.append(full_path)
+                except UnicodeDecodeError as ue:
+                    logger.warning(f"Skipping file/directory with encoding issue: {name} in {path}")
+                    continue
+                except Exception as e:
+                    logger.warning(f"Error processing {name} in {path}: {e}")
+                    continue
             
             # Restore original directory
             self.ftp.cwd(current_dir)

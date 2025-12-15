@@ -28,6 +28,10 @@ def _connect_ftp(server, port=21, username="anonymous", password="", use_tls=Fal
         ftp.connect(server, port)
         ftp.login(user=username, passwd=password)
         ftp.set_pasv(passive)
+        
+        # Set encoding to latin-1 to handle non-UTF-8 filenames (e.g., with umlauts)
+        ftp.encoding = 'latin-1'
+        
         return ftp
     except Exception as e:
         logger.error(f"FTP connection error: {e}")
@@ -53,25 +57,39 @@ def _list_directory(ftp, path="/"):
             for name, facts in entries:
                 if name in (".", ".."):
                     continue
-                    
-                entry_type = facts.get("type", "")
-                if entry_type == "dir":
-                    directories.append({
-                        "name": name,
-                        "path": os.path.join(path, name).replace("\\", "/"),
-                        "type": "dir"
-                    })
-                elif entry_type == "file" and name.lower().endswith(image_exts):
-                    files.append({
-                        "name": name,
-                        "path": os.path.join(path, name).replace("\\", "/"),
-                        "type": "file",
-                        "size": facts.get("size", "0")
-                    })
+                
+                try:
+                    entry_type = facts.get("type", "")
+                    if entry_type == "dir":
+                        directories.append({
+                            "name": name,
+                            "path": os.path.join(path, name).replace("\\", "/"),
+                            "type": "dir"
+                        })
+                    elif entry_type == "file" and name.lower().endswith(image_exts):
+                        files.append({
+                            "name": name,
+                            "path": os.path.join(path, name).replace("\\", "/"),
+                            "type": "file",
+                            "size": facts.get("size", "0")
+                        })
+                except UnicodeDecodeError as ue:
+                    logger.warning(f"Skipping file/directory with encoding issue: {name}")
+                    continue
             
-        except (AttributeError, error_perm):
+        except (AttributeError, error_perm, UnicodeDecodeError) as e:
             # Fallback to NLST if MLSD is not available
-            names = ftp.nlst()
+            logger.warning(f"MLSD failed for {path} ({e}), falling back to NLST")
+            try:
+                names = ftp.nlst()
+            except UnicodeDecodeError as ue:
+                logger.error(f"Unable to list directory {path} due to encoding issues: {ue}")
+                return {
+                    "current_path": path,
+                    "parent_path": os.path.dirname(path) if path != "/" else "/",
+                    "directories": [],
+                    "files": []
+                }
             
             # We don't have file type info with NLST, so we'll make an educated guess
             directories = []
@@ -81,29 +99,33 @@ def _list_directory(ftp, path="/"):
             for name in names:
                 if name in (".", ".."):
                     continue
-                    
-                full_path = os.path.join(path, name).replace("\\", "/")
                 
-                # Try to determine if it's a directory by attempting to CWD to it
                 try:
-                    curr_dir = ftp.pwd()
-                    ftp.cwd(full_path)
-                    ftp.cwd(curr_dir)  # Go back to original directory
+                    full_path = os.path.join(path, name).replace("\\", "/")
                     
-                    directories.append({
-                        "name": name,
-                        "path": full_path,
-                        "type": "dir"
-                    })
-                except error_perm:
-                    # If we can't CWD to it, it's probably a file
-                    if name.lower().endswith(image_exts):
-                        files.append({
+                    # Try to determine if it's a directory by attempting to CWD to it
+                    try:
+                        curr_dir = ftp.pwd()
+                        ftp.cwd(full_path)
+                        ftp.cwd(curr_dir)  # Go back to original directory
+                        
+                        directories.append({
                             "name": name,
                             "path": full_path,
-                            "type": "file",
-                            "size": "unknown"
+                            "type": "dir"
                         })
+                    except error_perm:
+                        # If we can't CWD to it, it's probably a file
+                        if name.lower().endswith(image_exts):
+                            files.append({
+                                "name": name,
+                                "path": full_path,
+                                "type": "file",
+                                "size": "unknown"
+                            })
+                except UnicodeDecodeError as ue:
+                    logger.warning(f"Skipping file/directory with encoding issue: {name}")
+                    continue
         
         # Sort directories and files alphabetically
         directories.sort(key=lambda x: x["name"].lower())
