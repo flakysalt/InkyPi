@@ -305,15 +305,32 @@ class FTPBrowser(BasePlugin):
             except Exception as e:
                 logger.warning(f"Could not apply EXIF orientation for {selected_image}: {e}")
             
-            # If image is vertical (portrait) and display is horizontal (landscape),
-            # rotate consistently to the right (90 degrees clockwise)
+            # Handle vertical images based on user preference
             img_width, img_height = img.size
             display_width, display_height = dimensions
+            vertical_handling = settings.get("verticalHandling", "rotate")
             
             # Check if image is portrait and display is landscape
             if img_height > img_width and display_width > display_height:
-                logger.info(f"Rotating vertical image 90° clockwise to fit horizontal display")
-                img = img.rotate(-90, expand=True)
+                if vertical_handling == "rotate":
+                    logger.info(f"Rotating vertical image 90° clockwise to fit horizontal display")
+                    img = img.rotate(90, expand=True)
+                elif vertical_handling == "crop":
+                    logger.info(f"Cropping and centering vertical image for horizontal display")
+                    # Calculate crop dimensions to match display aspect ratio
+                    display_aspect = display_width / display_height
+                    img_aspect = img_width / img_height
+                    
+                    if img_aspect > display_aspect:
+                        # Image is wider relative to display, crop width
+                        new_width = int(img_height * display_aspect)
+                        left = (img_width - new_width) // 2
+                        img = img.crop((left, 0, left + new_width, img_height))
+                    else:
+                        # Image is taller relative to display, crop height
+                        new_height = int(img_width / display_aspect)
+                        top = (img_height - new_height) // 2
+                        img = img.crop((0, top, img_width, top + new_height))
             
             # Resize the image to fit the display dimensions
             if settings.get("padImage", False):

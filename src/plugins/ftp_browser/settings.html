@@ -53,6 +53,15 @@
 </div>
 
 <div class="form-group">
+    <label for="verticalHandling" class="form-label">Vertical Image Handling:</label>
+    <select id="verticalHandling" name="verticalHandling" class="form-input">
+        <option value="rotate">Rotate to fit</option>
+        <option value="crop">Crop and center</option>
+    </select>
+    <small class="form-text text-muted">How to display vertical images on horizontal frame</small>
+</div>
+
+<div class="form-group">
     <label for="random_mode" class="form-label">Random Image Mode:</label>
     <div class="toggle-container">
         <input type="checkbox" id="random_mode" name="random_mode" class="toggle-checkbox" value="false"
@@ -649,6 +658,7 @@
             document.getElementById('use_tls').checked = pluginSettings.use_tls === 'true';
             document.getElementById('passive').checked = pluginSettings.passive !== 'false';
             document.getElementById('padImage').checked = pluginSettings.padImage === 'true';
+            document.getElementById('verticalHandling').value = pluginSettings.verticalHandling || 'rotate';
             document.getElementById('random_mode').checked = pluginSettings.random_mode === 'true';
             document.getElementById('current_path').value = pluginSettings.current_path || '/';
             document.getElementById('selected_image').value = pluginSettings.selected_image || '';
