@@ -299,6 +299,22 @@ class FTPBrowser(BasePlugin):
             # Open the image and convert to RGB
             img = Image.open(local_path).convert("RGB")
             
+            # Apply EXIF orientation to ensure image is in correct orientation
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception as e:
+                logger.warning(f"Could not apply EXIF orientation for {selected_image}: {e}")
+            
+            # If image is vertical (portrait) and display is horizontal (landscape),
+            # rotate consistently to the right (90 degrees clockwise)
+            img_width, img_height = img.size
+            display_width, display_height = dimensions
+            
+            # Check if image is portrait and display is landscape
+            if img_height > img_width and display_width > display_height:
+                logger.info(f"Rotating vertical image 90° clockwise to fit horizontal display")
+                img = img.rotate(-90, expand=True)
+            
             # Resize the image to fit the display dimensions
             if settings.get("padImage", False):
                 img = ImageOps.contain(img, dimensions, method=Image.LANCZOS)
