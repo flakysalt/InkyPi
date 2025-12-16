@@ -2,6 +2,9 @@
 
 # set up logging
 import os, logging.config
+
+from pi_heif import register_heif_opener
+
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'config', 'logging.conf'))
 
 # suppress warning from inky library https://github.com/pimoroni/inky/issues/205
@@ -77,6 +80,9 @@ app.register_blueprint(settings_bp)
 app.register_blueprint(plugin_bp)
 app.register_blueprint(playlist_bp)
 app.register_blueprint(ftp_browser_api, url_prefix='/api/plugins/ftp_browser')
+
+# Register opener for HEIF/HEIC images
+register_heif_opener()
 
 if __name__ == '__main__':
 
