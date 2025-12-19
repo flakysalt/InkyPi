@@ -20,15 +20,23 @@ class ImmichProvider:
         self.orientation = orientation
         self.headers = {"x-api-key": self.key}
 
-    def get_asset_ids(self, album_name: str) -> list[str]:
+    def get_album_data(self, album_name: str) -> dict:
         r = requests.get(f"{self.base_url}/api/albums", headers=self.headers)
         r.raise_for_status()
         albums = r.json()
-        album = [a for a in albums if a["albumName"] == album_name][0]
+        album_summary = [a for a in albums if a["albumName"] == album_name][0]
 
-        if album is None:
+        if album_summary is None:
             raise RuntimeError(f"Album {album_name} not found.")
 
+        album_id = album_summary["id"]
+        r2 = requests.get(f"{self.base_url}/api/albums/{album_id}", headers=self.headers)
+        r2.raise_for_status()
+        
+        return r2.json()
+
+    def get_asset_ids(self, album_name: str) -> list[str]:
+        album = self.get_album_data(album_name)
         return [asset["id"] for asset in album.get("assets", [])]
 
     def get_image(self, album: str) -> ImageFile | None:
